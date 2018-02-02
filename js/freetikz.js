@@ -429,19 +429,21 @@ function connect (wires, dots, morphisms) {
 }
 
 /**
- * Rounds the number to the nearest multiple of _mult
- * @param {Number} _mult
+ * Rounds @1 to the nearest multiple of @2
+ * @param {Number} precise
+ * @param {Number} multiples
+ * @returns {Number}
  */
-Number.prototype.mround = function (_mult) {
-  var base = Math.abs(this)
-  var mult = Math.abs(_mult)
+function round (precise, multiples) {
+  var base = Math.abs(precise)
+  var mult = Math.abs(multiples)
   var mod = (base % mult)
   if (mod <= (mult / 2)) {
     base -= mod
   } else {
     base += (mult - mod)
   }
-  return (this < 0) ? -base : base
+  return (precise < 0) ? -base : base
 }
 
 /**
@@ -451,8 +453,8 @@ Number.prototype.mround = function (_mult) {
 function latexCoords (point) {
   var x = point[0]
   var y = point[1]
-  return parseFloat(x * 10 / svg.getBoundingClientRect().width).mround(settings.grid).toFixed(2) * 1 +
-    ', ' + parseFloat(10 - y * 10 / svg.getBoundingClientRect().height).mround(settings.grid).toFixed(1) * 1
+  return round(parseFloat(x * 10 / svg.getBoundingClientRect().width), settings.grid).toFixed(2) * 1 +
+    ', ' + round(parseFloat(10 - y * 10 / svg.getBoundingClientRect().height), settings.grid).toFixed(1) * 1
 }
 
 /**
@@ -461,7 +463,7 @@ function latexCoords (point) {
  * @returns {Number}
  */
 function snapAngle (angle) {
-  var snapangle = parseFloat(angle).mround(settings.angleSnapThreshold)
+  var snapangle = round(parseFloat(angle), settings.angleSnapThreshold)
   if (snapangle === -180) snapangle = 180
   if (snapangle === 0) snapangle = 0 // Force to +0, not -0
   return snapangle
