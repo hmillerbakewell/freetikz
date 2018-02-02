@@ -2,16 +2,17 @@
 
 /* PARAMETERS */
 
-var strokeWidth = 2 // how wide strokes in html svg element are
-var smoothingFactor = 6 // how much strokes in html svg element are dynamically smoothed out while drawing
-var segmentationThreshold = 70.0 // how close two segments have to be to be considered part of one shape
-var convexityThreshold = 0.5 // how nonconcave a shape has to be to be considered convex
-var openThreshold = 0.1 // how close endpoints of a path have to be for it to be considered a closed shape
-var connectThreshold = 50.0 // how close a wire has to be to a shape to connect to it
-var angleThreshold = 5.0 // how close an segment of a wire needs to be to a right angle
-var angleSnapThreshold = 45 // wire angles will be rounded to multiples of this many degrees
-var grid = 0.5 // how large the grid is that coordinates are snapped to
-
+var settings = {
+  strokeWidth: 2, // how wide strokes in html svg element are
+  smoothingFactor: 6, // how much strokes in html svg element are dynamically smoothed out while drawing
+  segmentationThreshold: 70.0, // how close two segments have to be to be considered part of one shape
+  convexityThreshold: 0.5, // how nonconcave a shape has to be to be considered convex
+  openThreshold: 0.1, // how close endpoints of a path have to be for it to be considered a closed shape
+  connectThreshold: 50.0, // how close a wire has to be to a shape to connect to it
+  angleThreshold: 5.0, // how close an segment of a wire needs to be to a right angle
+  angleSnapThreshold: 45, // wire angles will be rounded to multiples of this many degrees
+  grid: 0.5 // how large the grid is that coordinates are snapped to
+}
 /* SMOOTH SVG DRAWING */
 
 var svg = null // <svg> elemement
@@ -50,7 +51,7 @@ var pointerDown = function (e) {
     svgpath = document.createElementNS('http://www.w3.org/2000/svg', 'path')
     svgpath.setAttribute('fill', 'none')
     svgpath.setAttribute('stroke', '#000')
-    svgpath.setAttribute('stroke-width', strokeWidth)
+    svgpath.setAttribute('stroke-width', settings.strokeWidth)
     buffer = []
     var pt = getMousePosition(e)
     appendToBuffer(pt)
@@ -101,7 +102,7 @@ var getMousePosition = function (e) {
  */
 var appendToBuffer = function (pt) {
   buffer.push(pt)
-  while (buffer.length > smoothingFactor) {
+  while (buffer.length > settings.smoothingFactor) {
     buffer.shift()
   }
 }
@@ -113,7 +114,7 @@ var appendToBuffer = function (pt) {
 var getAveragePoint = function (offset) {
   var len = buffer.length
   // TODO: Understand what happens when this is false
-  if (len % 2 === 1 || len >= smoothingFactor) {
+  if (len % 2 === 1 || len >= settings.smoothingFactor) {
     var totalX = 0
     var totalY = 0
     var pt, i
@@ -341,8 +342,8 @@ function updateLatex () {
     var rectangularity = Rectangularity(boundingbox, area)
     var circularity = Circularity(path, centre, area)
     var aspectratio = AspectRatio(boundingbox)
-    var convex = isConvex(path, area, convexityThreshold)
-    var open = isOpen(path, perimeter, openThreshold)
+    var convex = isConvex(path, area, settings.convexityThreshold)
+    var open = isOpen(path, perimeter, settings.openThreshold)
     var orientation = Orientation(path, centre)
 
     /* classify the shape */
@@ -372,7 +373,7 @@ function updateLatex () {
  * @returns {String}
  */
 function bestConnection (point, dots, morphisms) {
-  var bestDistance = connectThreshold
+  var bestDistance = settings.connectThreshold
   var bestConnection = ''
   for (var d = 0; d < dots.length; d++) {
     if (d3.polygonContains(dots[d][0], point)) return 'd' + d + '.center'
@@ -390,7 +391,7 @@ function bestConnection (point, dots, morphisms) {
       bestConnection = 'm' + m
     }
   }
-  if (bestDistance < connectThreshold) return bestConnection
+  if (bestDistance < settings.connectThreshold) return bestConnection
   else return latexCoords(point)
 }
 
@@ -436,8 +437,8 @@ Number.prototype.mround = function (_mult) {
 function latexCoords (point) {
   var x = point[0]
   var y = point[1]
-  return parseFloat(x * 10 / svg.getBoundingClientRect().width).mround(grid).toFixed(2) * 1 +
-    ', ' + parseFloat(10 - y * 10 / svg.getBoundingClientRect().height).mround(grid).toFixed(1) * 1
+  return parseFloat(x * 10 / svg.getBoundingClientRect().width).mround(settings.grid).toFixed(2) * 1 +
+    ', ' + parseFloat(10 - y * 10 / svg.getBoundingClientRect().height).mround(settings.grid).toFixed(1) * 1
 }
 
 /**
@@ -446,7 +447,7 @@ function latexCoords (point) {
  * @returns {Number}
  */
 function snapAngle (angle) {
-  var snapangle = parseFloat(angle).mround(angleSnapThreshold)
+  var snapangle = parseFloat(angle).mround(settings.angleSnapThreshold)
   if (snapangle === -180) snapangle = 180
   if (snapangle === 0) snapangle = 0 // Force to +0, not -0
   return snapangle
@@ -459,7 +460,7 @@ function snapAngle (angle) {
  */
 function isHorizontalOrVertical (angle) {
   var snapangle = Math.abs(angle) % 90
-  var snap = (snapangle < angleThreshold) || (snapangle > 90 - angleThreshold)
+  var snap = (snapangle < settings.angleThreshold) || (snapangle > 90 - settings.angleThreshold)
   return snap
 }
 
@@ -669,7 +670,7 @@ function erase (pt) {
 }
 
 // Register undo event with d3
-d3.select('body').on('keydown', function () { if (d3.event.keyCode == 90) undo() })
+d3.select('body').on('keydown', function () { if (d3.event.keyCode === 90) undo() })
 
 /**
  * Handler for the undo action
