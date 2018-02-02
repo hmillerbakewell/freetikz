@@ -34,13 +34,25 @@ function setup () {
   svg = document.getElementById('svg')
   svg.rect = svg.getBoundingClientRect()
 
-  svg.addEventListener('touchstart', function (e) { pointerDown(e); e.stopPropagation; e.preventDefault() })
+  svg.addEventListener('touchstart', function (e) {
+    e.stopPropagation()
+    e.preventDefault()
+    pointerDown(e)
+  })
   svg.addEventListener('mousedown', pointerDown)
 
-  svg.addEventListener('touchmove', function (e) { pointerMove(e); e.stopPropagation; e.preventDefault() })
+  svg.addEventListener('touchmove', function (e) {
+    e.stopPropagation()
+    e.preventDefault()
+    pointerMove(e)
+  })
   svg.addEventListener('mousemove', pointerMove)
 
-  svg.addEventListener('touchend', function (e) { pointerUp(e); e.stopPropagation; e.preventDefault() })
+  svg.addEventListener('touchend', function (e) {
+    e.stopPropagation()
+    e.preventDefault()
+    pointerUp(e)
+  })
   svg.addEventListener('mouseup', pointerUp)
 }
 
