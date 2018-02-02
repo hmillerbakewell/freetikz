@@ -16,12 +16,11 @@ var settings = {
 /* SMOOTH SVG DRAWING */
 
 var svg = null // <svg> elemement
-var rect = null // Bounding rectangle for the svg
+var latex = null // <textarea> element for output
+var d3svg = null // d3 reference for the svg object
 var svgpath = null // svg path element, used when user draws
 var strPath = null // svg path in "M 10, 20" etc. form
 var buffer = [] // holds points for smoothing
-var latex = null // <textarea> element for output
-var d3svg = null // d3 reference for the svg object
 
 /**
  * Initialises the svg and d3 handlers
@@ -31,7 +30,7 @@ function setup () {
 
   d3svg = d3.select('#svg')
   svg = document.getElementById('svg')
-  rect = svg.getBoundingClientRect()
+  svg.rect = svg.getBoundingClientRect()
 
   svg.addEventListener('touchstart', function (e) { pointerDown(e); e.stopPropagation; e.preventDefault() })
   svg.addEventListener('mousedown', pointerDown)
@@ -91,8 +90,8 @@ var pointerUp = function () {
  */
 var getMousePosition = function (e) {
   return {
-    x: e.pageX - rect.left,
-    y: e.pageY - rect.top
+    x: e.pageX - svg.rect.left,
+    y: e.pageY - svg.rect.top
   }
 }
 
