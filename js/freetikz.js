@@ -167,15 +167,19 @@ var updateSvgPath = function () {
 /**
  * Pull the points from svgPath
  * @param {String} svgPath
- * @returns {List[[Number, Number]]}
+ * @returns {List[Point]}
  */
 function svgPathToList (svgPath) {
   var src = svgPath.split(/(?=[LM])/)
   var path = []
   for (var i = 0; i < src.length; i++) {
     var seg = src[i].replace(/L /g, '').replace(/M /g, '').replace(/L/g, '').replace(/M/g, '')
-    var point = seg.split(' ')
-    path.push([parseFloat(point[0]), parseFloat(point[1])])
+    var pointString = seg.split(' ')
+    path.push(
+      {
+        x: parseFloat(pointString[0]),
+        y: parseFloat(pointString[1])
+      })
     // path.push({ x : parseFloat(point[0]), y : parseFloat(point[1])});
   }
   return path
@@ -183,29 +187,34 @@ function svgPathToList (svgPath) {
 
 /**
  * Euclidean distance
- * @param {[Number, Number]} a
- * @param {[Number, Number]} b
+ * @param {Point} a
+ * @param {Point} b
  */
 function distance (a, b) {
-  var x = b[0] - a[0]
-  var y = b[1] - a[1]
+  var x = b.x - a.x
+  var y = b.y - a.y
   return Math.sqrt(x * x + y * y)
 }
 
 /**
  * Find bounding box for the given path
- * @param {List[[Number, Number]]} path
- * @returns {[[Number, Number], [Number, Number]]}
+ * @param {List[Point]} path
+ * @returns {BoundingBox}
  */
 function BoundingBox (path) {
   var minX, maxX, minY, maxY
   for (var i = 0; i < path.length; i++) {
-    minX = (path[i][0] < minX || minX == null) ? path[i][0] : minX
-    maxX = (path[i][0] > maxX || maxX == null) ? path[i][0] : maxX
-    minY = (path[i][1] < minY || minY == null) ? path[i][1] : minY
-    maxY = (path[i][1] > maxY || maxY == null) ? path[i][1] : maxY
+    minX = (path[i].x < minX || minX == null) ? path[i].x : minX
+    maxX = (path[i].x > maxX || maxX == null) ? path[i].x : maxX
+    minY = (path[i].y < minY || minY == null) ? path[i].y : minY
+    maxY = (path[i].y > maxY || maxY == null) ? path[i].y : maxY
   }
-  return [[minX, minY], [maxX, maxY]]
+  return {
+    minX: minX,
+    minY: minY,
+    maxX: maxX,
+    maxY: maxY
+  }
 }
 
 /**
@@ -220,19 +229,21 @@ function Compactness (area, perimeter) {
 
 /**
  * Heuristic for path eccentricity
- * @param {List[[Number, Number]]} path
- * @param {[Number, Number]} centre
+ * @param {List[Point]} path
+ * @param {Point} centre
  * @returns {Number}
  */
 function Eccentricity (path, centre) {
   var centredpath = []
-  for (var i = 0; i < path.length; i++) centredpath.push([path[i][0] - centre[0], path[i][1] - centre[1]])
+  for (var i = 0; i < path.length; i++) {
+    centredpath.push({x: path[i].x - centre.x, y: path[i].y - centre.y})
+  }
   var covariance = [0, 0, 0, 0]
   for (i = 0; i < centredpath.length; i++) {
-    covariance[0] += centredpath[i][0] * centredpath[i][0]
-    covariance[1] += centredpath[i][0] * centredpath[i][1]
-    covariance[2] += centredpath[i][1] * centredpath[i][0]
-    covariance[3] += centredpath[i][1] * centredpath[i][1]
+    covariance[0] += centredpath[i].x * centredpath[i].x
+    covariance[1] += centredpath[i].x * centredpath[i].y
+    covariance[2] += centredpath[i].y * centredpath[i].x
+    covariance[3] += centredpath[i].y * centredpath[i].y
   }
   var b = Math.sqrt(Math.pow(covariance[0] + covariance[3], 2) - 4 * (covariance[0] * covariance[3] - Math.pow(covariance[1], 2)))
   var lambda1 = covariance[0] + covariance[3] + b
@@ -241,21 +252,13 @@ function Eccentricity (path, centre) {
 }
 
 /**
- * Heuristic for angularity (spikiness)
- * @param {[Number, Number]} boundingbox
+ * Heuristic for Rectangularity (spikiness)
+ * @param {BoundingBox} boundingbox
  * @param {Number} area
  * @returns {Number}
  */
-function angularity (boundingbox, area) {
-  var boundarea = (boundingbox[1][0] - boundingbox[0][0]) * (boundingbox[1][1] - boundingbox[0][1])
-  return area / boundarea
-}
-
-/**
- * Duplicate of angularity
- */
 function Rectangularity (boundingbox, area) {
-  var boundarea = (boundingbox[1][0] - boundingbox[0][0]) * (boundingbox[1][1] - boundingbox[0][1])
+  var boundarea = (boundingbox.maxX - boundingbox.minX) * (boundingbox.maxY - boundingbox.minY)
   return area / boundarea
 }
 
@@ -282,24 +285,42 @@ function Circularity (path, centre, area) {
  * @returns {Number}
  */
 function AspectRatio (boundingbox) {
-  return (boundingbox[1][0] - boundingbox[0][0]) / (boundingbox[1][1] - boundingbox[0][1])
+  return (boundingbox.maxX - boundingbox.minX) / (boundingbox.maxY - boundingbox.minY)
+}
+
+/**
+ * Convert path to d3 standard (pairs of numbers)
+ * @param {List[Point]}
+ * @returns {List[[Number, Number]]}
+ */
+function pathToD3 (path) {
+  return path.map(function (p) { return [p.x, p.y] })
+}
+
+/**
+ * Convert d3 path (pairs of numbers) to a list of points
+ * @param {List[[Number, Number]]}
+ * @returns {List[Point]}
+ */
+function d3PathToPoints (path) {
+  return path.map(function (p) { return {x: p[0], y: p[1]} })
 }
 
 /**
  * Heuristic for convexity
- * @param {List[Number, Number]} path
+ * @param {List[Point]} path
  * @param {Number} area
  * @param {Number} threshold
  * @returns {Number}
  */
 function isConvex (path, area, threshold) {
-  var convexhullArea = d3.polygonArea(d3.polygonHull(path))
+  var convexhullArea = d3.polygonArea(d3.polygonHull(pathToD3(path)))
   return ((area / convexhullArea) >= threshold)
 }
 
 /**
  * Heuristic for whether the path is considered open
- * @param {List[Number, Number]} path
+ * @param {List[Point]} path
  * @param {Number} perimeter
  * @param {Number} threshold
  * @returns {Boolean}
@@ -311,8 +332,8 @@ function isOpen (path, perimeter, threshold) {
 
 /**
  * Find orientation using the furthest point from the centre of the path
- * @param {List[Number, Number]} path
- * @param {[Number, Number]} centre
+ * @param {List[Point]} path
+ * @param {Point} centre
  * @returns {String}
  */
 function Orientation (path, centre) {
@@ -322,8 +343,8 @@ function Orientation (path, centre) {
     var d = distance(path[i], centre)
     if (d > furthestdistance) { furthestdistance = d; corner = path[i] }
   }
-  var dx = corner[0] - centre[0]
-  var dy = corner[1] - centre[1]
+  var dx = corner.x - centre.x
+  var dy = corner.y - centre.y
   if (dx < 0 && dy < 0) return ', hvflip'
   if (dx >= 0 && dy < 0) return ', hflip'
   if (dx >= 0 && dy >= 0) return ''
@@ -344,13 +365,15 @@ function updateLatex () {
   var wires = []
   var dots = []
   var morphisms = []
+  var toPoint = p => ({x: p[0], y: p[1]})
   for (var i = 0; i < pathlist.length; i++) {
     /* calculate properties of polygon */
     var path = pathlist[i]
+    var d3Path = pathToD3(path)
     var boundingbox = BoundingBox(path)
-    var centre = d3.polygonCentroid(path)
-    var area = Math.abs(d3.polygonArea(path))
-    var perimeter = d3.polygonLength(path)
+    var centre = toPoint(d3.polygonCentroid(d3Path))
+    var area = Math.abs(d3.polygonArea(d3Path))
+    var perimeter = d3.polygonLength(d3Path)
     var compactness = Compactness(area, perimeter)
     var eccentricity = Eccentricity(path, centre)
     var rectangularity = Rectangularity(boundingbox, area)
@@ -381,9 +404,9 @@ function updateLatex () {
 
 /**
  * Try to find any existing structure for the point to connect to
- * @param {[Number, Number]} point The point we are investigating
- * @param {List[[Polygon, [Number, Number]]]} dots
- * @param {List[[Polygon, [Number, Number]]]} morphisms
+ * @param {Point} point The point we are investigating
+ * @param {List[[Polygon, Point]]} dots
+ * @param {List[[Polygon, Point]]} morphisms
  * @returns {String}
  */
 function bestConnection (point, dots, morphisms) {
@@ -411,10 +434,10 @@ function bestConnection (point, dots, morphisms) {
 
 /**
  * Connect the wires to the given dots and morphisms
- * @param {List[[Number, Number]]} wires
- * @param {List[[Polygon, [Number, Number]]]} dots
- * @param {List[[Polygon, [Number, Number]]]} morphisms
- * @returns {List[[Wire, [Number, Number], [Number, Number]]}
+ * @param {List[Point]} wires
+ * @param {List[[Polygon, Point]]} dots
+ * @param {List[[Polygon, Point]]} morphisms
+ * @returns {List[[Wire, Point, Point]}
  */
 function connect (wires, dots, morphisms) {
   var annotatedwires = []
@@ -448,13 +471,11 @@ function round (precise, multiples) {
 
 /**
  * Convert a point into its latex coordinates
- * @param {[Number, Number]} point
+ * @param {Point} point
  */
 function latexCoords (point) {
-  var x = point[0]
-  var y = point[1]
-  return round(parseFloat(x * 10 / svg.getBoundingClientRect().width), settings.grid).toFixed(2) * 1 +
-    ', ' + round(parseFloat(10 - y * 10 / svg.getBoundingClientRect().height), settings.grid).toFixed(1) * 1
+  return round(parseFloat(point.x * 10 / svg.getBoundingClientRect().width), settings.grid).toFixed(2) * 1 +
+    ', ' + round(parseFloat(10 - point.y * 10 / svg.getBoundingClientRect().height), settings.grid).toFixed(1) * 1
 }
 
 /**
@@ -482,27 +503,27 @@ function isHorizontalOrVertical (angle) {
 
 /**
  * Angle of the second argument from the first
- * @param {[Number, Number]} begin
- * @param {[Number, Number]} end
+ * @param {Point} begin
+ * @param {Point} end
  * @returns {Number}
  */
 function Angle (begin, end) {
-  var dx = end[0] - begin[0]
-  var dy = end[1] - begin[1]
+  var dx = end.x - begin.x
+  var dy = end.y - begin.y
   var angle = Math.atan2(-dy, dx)
   return angle * 180.0 / Math.PI
 }
 
 /**
  * Render the dot to svg
- * @param {[Number, Number]} point
+ * @param {Point} point
  * @param {String} color
  */
 function showDot (point, color) {
   var svgns = 'http://www.w3.org/2000/svg'
   var dot = document.createElementNS(svgns, 'circle')
-  dot.setAttributeNS(null, 'cx', point[0])
-  dot.setAttributeNS(null, 'cy', point[1])
+  dot.setAttributeNS(null, 'cx', point.x)
+  dot.setAttributeNS(null, 'cy', point.y)
   dot.setAttributeNS(null, 'r', 2)
   dot.setAttributeNS(null, 'style', 'fill:' + color + '; stroke: black; stroke-width: 1px;')
   svg.appendChild(dot)
@@ -518,6 +539,7 @@ function simplifyWire (wire) {
   // var s = simplify(wire, 30, true);
   // for (var i=0; i<s.length; i++) showDot(s[i], 'red');
 
+  // angledWire contains [point, angleFromLast, angleToNext]
   var angledwire = [[wire[0], 999, snapAngle(Angle(wire[0], wire[1]))]]
   for (var i = 1; i < wire.length - 2; i++) {
     angledwire.push([wire[i], snapAngle(Angle(wire[i], wire[i - 1])), snapAngle(Angle(wire[i], wire[i + 1]))])
@@ -579,31 +601,29 @@ function anchor (node, angle, point, morphisms, wires) {
       }
     }
 
-    if (nrNorthConnections === 1 && point[1] <= morphismcentre[1]) return node + '.north'
-    if (nrSouthConnections === 1 && point[1] >= morphismcentre[1]) return node + '.south'
+    if (nrNorthConnections === 1 && point.y <= morphismcentre.y) return node + '.north'
+    if (nrSouthConnections === 1 && point.y >= morphismcentre.y) return node + '.south'
 
-    if (nrNorthConnections === 2 && point[1] <= morphismcentre[1]) {
-      if (point[0] <= morphismcentre[0]) return node + '.north west'
+    if (nrNorthConnections === 2 && point.y <= morphismcentre.y) {
+      if (point.x <= morphismcentre.x) return node + '.north west'
       else return node + '.north east'
     }
-    if (nrSouthConnections === 2 && point[1] >= morphismcentre[1]) {
-      if (point[0] <= morphismcentre[0]) return node + '.south west'
+    if (nrSouthConnections === 2 && point.y >= morphismcentre.y) {
+      if (point.x <= morphismcentre.x) return node + '.south west'
       else return node + '.south east'
     }
 
     var morphismbbox = BoundingBox(morphism[0])
-    var left = morphismbbox[0][0]
-    var right = morphismbbox[1][0]
-    var width = right - left
+    var width = morphismbbox.maxX - morphismbbox.minX
 
-    if (nrNorthConnections === 3 && point[1] <= morphismcentre[1]) {
-      if (point[0] < morphismcentre[0] - width / 6) return node + '.north west'
-      else if (point[0] > morphismcentre[0] + width / 6) return node + '.north east'
+    if (nrNorthConnections === 3 && point.y <= morphismcentre.y) {
+      if (point.x < morphismcentre.x - width / 6) return node + '.north west'
+      else if (point.x > morphismcentre.x + width / 6) return node + '.north east'
       else return node + '.north'
     }
-    if (nrSouthConnections === 3 && point[1] >= morphismcentre[1]) {
-      if (point[0] < morphismcentre[0] - width / 6) return node + '.south west'
-      else if (point[0] > morphismcentre[0] + width / 6) return node + '.south east'
+    if (nrSouthConnections === 3 && point.y >= morphismcentre.y) {
+      if (point.x < morphismcentre.x - width / 6) return node + '.south west'
+      else if (point.x > morphismcentre.x + width / 6) return node + '.south east'
       else return node + '.south'
     }
 
