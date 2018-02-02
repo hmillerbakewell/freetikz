@@ -15,11 +15,13 @@ var settings = {
 }
 /* SMOOTH SVG DRAWING */
 
-var svg = null // <svg> elemement
+var svg = {
+  // This will hold document.getElementById('svg'), as well as the following:
+  currentPathElement: null,
+  currentPathString: null
+}
 var latex = null // <textarea> element for output
 var d3svg = null // d3 reference for the svg object
-var svgpath = null // svg path element, used when user draws
-var strPath = null // svg path in "M 10, 20" etc. form
 var buffer = [] // holds points for smoothing
 
 /**
@@ -47,16 +49,16 @@ function setup () {
  */
 var pointerDown = function (e) {
   if (pencil) {
-    svgpath = document.createElementNS('http://www.w3.org/2000/svg', 'path')
-    svgpath.setAttribute('fill', 'none')
-    svgpath.setAttribute('stroke', '#000')
-    svgpath.setAttribute('stroke-width', settings.strokeWidth)
+    svg.currentPathElement = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+    svg.currentPathElement.setAttribute('fill', 'none')
+    svg.currentPathElement.setAttribute('stroke', '#000')
+    svg.currentPathElement.setAttribute('stroke-width', settings.strokeWidth)
     buffer = []
     var pt = getMousePosition(e)
     appendToBuffer(pt)
-    strPath = 'M' + pt.x + ' ' + pt.y
-    svgpath.setAttribute('d', strPath)
-    svg.appendChild(svgpath)
+    svg.currentPathString = 'M' + pt.x + ' ' + pt.y
+    svg.currentPathElement.setAttribute('d', svg.currentPathString)
+    svg.appendChild(svg.currentPathElement)
   } else if (eraser) {
     erase(getMousePosition(e))
   }
@@ -67,7 +69,7 @@ var pointerDown = function (e) {
  */
 var pointerMove = function (e) {
   if (pencil) {
-    if (svgpath) {
+    if (svg.currentPathString) {
       appendToBuffer(getMousePosition(e))
       updateSvgPath()
     }
@@ -80,7 +82,7 @@ var pointerMove = function (e) {
  * Handles touchend and mouseup events
  */
 var pointerUp = function () {
-  if (svgpath) svgpath = null
+  if (svg.currentPathString) svg.currentPathString = null
   updateLatex()
 }
 
@@ -138,13 +140,13 @@ var getAveragePoint = function (offset) {
 var updateSvgPath = function () {
   var pt = getAveragePoint(0)
   if (pt) {
-    strPath += ' L' + pt.x + ' ' + pt.y
+    svg.currentPathString += ' L' + pt.x + ' ' + pt.y
     var tmpPath = ''
     for (var offset = 2; offset < buffer.length; offset += 2) {
       pt = getAveragePoint(offset)
       tmpPath += ' L' + pt.x + ' ' + pt.y
     }
-    svgpath.setAttribute('d', strPath + tmpPath)
+    svg.currentPathElement.setAttribute('d', svg.currentPathString + tmpPath)
   }
 }
 
@@ -152,6 +154,7 @@ var updateSvgPath = function () {
 
 /**
  * Pull the points from svgPath
+ * @param {String} svgPath
  * @returns {List[[Number, Number]]}
  */
 function svgPathToList (svgPath) {
